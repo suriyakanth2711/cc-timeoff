@@ -6,6 +6,17 @@ from timeoff_api.serializers import  PolicySerializer, LeaveSerializer
 from datetime import datetime
 
 
+class Policies(generics.GenericAPIView):
+    serializer_class = PolicySerializer
+    queryset = PolicyModel.objects.all()
+    def get(self, request, org):
+        policies = PolicyModel.objects.filter(organization = org)
+        serializer = self.serializer_class(policies, many=True)
+        return Response(serializer.data)
+
+
+
+
 
 class Policy(generics.GenericAPIView):
     serializer_class = PolicySerializer
@@ -16,25 +27,28 @@ class Policy(generics.GenericAPIView):
         except:
             return None
 
-    def get(self, request, pk=None):
+    def get(self, request, org, pk):
         print(pk)
-        policies = PolicyModel.objects.filter(organization = request.query_params.get("organization"))
+        policies = PolicyModel.objects.filter(id = pk)
         serializer = self.serializer_class(policies, many=True)
         return Response(serializer.data)
 
-    def post(self, request, pk=None):
-        serializer = self.serializer_class(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"status": "success", "policy": serializer.data}, status=status.HTTP_201_CREATED)
+    def post(self, request, org, pk):
+        if pk=='new':
+            serializer = self.serializer_class(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"status": "success", "policy": serializer.data}, status=status.HTTP_201_CREATED)
+            else:
+                return Response({"status": "fail", "message": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({"status": "fail", "message": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"status": "fail", "message": "Invalid endpoint"}, status=status.HTTP_400_BAD_REQUEST)
 
-    def patch(self, request, pk):
+
+    def patch(self, request, org, pk):
         policy = self.get_policy(pk)
         if policy == None:
             return Response({"status": "fail", "message": f"Note with Id: {pk} not found"}, status=status.HTTP_404_NOT_FOUND)
-
         serializer = self.serializer_class(policy, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.validated_data['last_udpated_on'] = datetime.now()
@@ -42,7 +56,7 @@ class Policy(generics.GenericAPIView):
             return Response({"status": "success", "policy": serializer.data})
         return Response({"status": "fail", "message": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, pk):
+    def delete(self, request, org, pk):
         policy = self.get_policy(pk)
         if policy == None:
             return Response({"status": "fail", "message": f"policy with Id: {pk} not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -61,7 +75,7 @@ class Leave(generics.GenericAPIView):
         except:
             return None
 
-    def get(self, request, eid):
+    def get(self, request, org, eid):
         leaves = LeaveModel.objects.filter(employee_ID = eid)
         serializer = self.serializer_class(leaves, many=True)
         leaves_with_types = {}
@@ -73,10 +87,10 @@ class Leave(generics.GenericAPIView):
                 leaves_with_types[leave['leave_type']] += (todt(leave['end_date']) - todt(leave['start_date'])).days
 
         ############ DUMMY DATA
-        employee = {"designation":"manager", "organization":"ABC"} ## change to employee details API Call
+        employee = {"designation":"manager"} ## change to employee details API Call
         ############
         allowed_leaves = {}
-        policies = self.policies.filter(designation=employee["designation"],organization = employee["organization"])
+        policies = self.policies.filter(designation=employee["designation"],organization = org)
         for policy in PolicySerializer(policies,many=True).data:
             allowed_leaves[policy['leave_type']] = policy['num_of_leaves']
         
@@ -84,7 +98,7 @@ class Leave(generics.GenericAPIView):
 
         return Response(response)
 
-    def post(self, request, eid):
+    def post(self, request, org ,eid):
         data = request.data.copy()
         data['employee_ID'] = eid
         if data["status"] =="" :
@@ -94,10 +108,10 @@ class Leave(generics.GenericAPIView):
             return Response({"status": "fail", "message": "Invalid Date Range Selected"}, status=status.HTTP_400_BAD_REQUEST)
 
         ############ DUMMY DATA
-        employee = {"designation":"manager", "organization":"ABC"} ## change to employee details API Call
+        employee = {"designation":"manager"} ## change to employee details API Call
         ############
 
-        policy = self.policies.filter(leave_type = data['leave_type'], designation=employee["designation"],organization = employee["organization"])
+        policy = self.policies.filter(leave_type = data['leave_type'], designation=employee["designation"],organization = org)
         policy_data = PolicySerializer(policy,many=True).data[0]
         todt = lambda x : (datetime.strptime(x,'%Y-%m-%dT%H:%M'))
 
@@ -130,9 +144,3 @@ class Leave(generics.GenericAPIView):
         else:
             return Response({"status": "fail", "message": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, pk):
-        policy = self.get_policy(pk)
-        if policy == None:
-            return Response({"status": "fail", "message": f"policy with Id: {pk} not found"}, status=status.HTTP_404_NOT_FOUND)
-        policy.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
