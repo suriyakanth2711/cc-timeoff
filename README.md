@@ -12,9 +12,8 @@ Django application to manage time-off
 | POST /api/timeoff/policy/<organization\>/new  | Add a new policy in a organization |
 | PATCH /api/timeoff/policy/<organization\>/<id\>  | Edit policy (with id) in a organization |
 | DELETE /api/timeoff/policy/<organization\>/<id\>  | Delete policy (with id) in a organization |
-| GET /api/timeoff/leaves/<eid\>  | Get leave Details of employee (with id) |
-| POST /api/timeoff/policy/<eid\> | Apply for a leave |
-| DELETE /api/timeoff/policy/<eid\>  | Delete a applied leave|
+| GET /api/timeoff/leaves/<organization\>/<eid\>  | Get leave Details of employee (with id) |
+| POST /api/timeoff/leaves/<organization\>/<eid\> | Apply for a leave |
 
 
 
