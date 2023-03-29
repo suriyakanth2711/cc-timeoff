@@ -1,4 +1,5 @@
 from urllib import response
+import requests
 from rest_framework.response import Response
 from rest_framework import status, generics
 from timeoff_api.models import  PolicyModel, LeaveModel
@@ -29,9 +30,12 @@ class Policy(generics.GenericAPIView):
 
     def get(self, request, org, pk):
         print(pk)
-        policies = PolicyModel.objects.filter(id = pk)
-        serializer = self.serializer_class(policies, many=True)
-        return Response(serializer.data)
+        if isinstance(pk, int):
+            policies = PolicyModel.objects.filter(id = pk)
+            serializer = self.serializer_class(policies, many=True)
+            return Response(serializer.data)
+        else :
+            return Response([])
 
     def post(self, request, org, pk):
         if pk=='new':
@@ -86,15 +90,22 @@ class Leave(generics.GenericAPIView):
             else:
                 leaves_with_types[leave['leave_type']] += (todt(leave['end_date']) - todt(leave['start_date'])).days
 
-        ############ DUMMY DATA
-        employee = {"designation":"manager"} ## change to employee details API Call
-        ############
+        
+        employee_details = requests.post(url = "https://employee-data-platform.vercel.app/api/fetchone", json = {"id":eid})
+        
+        
+        if employee_details.json() == []:
+            return Response({"status": "fail", "message": "Employee ID not found."}, status=status.HTTP_400_BAD_REQUEST) 
+        else:
+            x = employee_details.json()[0]
+            employee = {"designation":x["employee_role"], "first_name":x["first_name"], "last_name":x["last_name"]}
+
         allowed_leaves = {}
         policies = self.policies.filter(designation=employee["designation"],organization = org)
         for policy in PolicySerializer(policies,many=True).data:
             allowed_leaves[policy['leave_type']] = policy['num_of_leaves']
         
-        response = {"taken_leaves": leaves_with_types, "available_leaves":allowed_leaves,"leaves_list":serializer.data}
+        response = {"name":employee,"taken_leaves": leaves_with_types, "available_leaves":allowed_leaves,"leaves_list":serializer.data}
 
         return Response(response)
 
@@ -107,9 +118,10 @@ class Leave(generics.GenericAPIView):
         if data['start_date'] >= data['end_date']:
             return Response({"status": "fail", "message": "Invalid Date Range Selected"}, status=status.HTTP_400_BAD_REQUEST)
 
-        ############ DUMMY DATA
-        employee = {"designation":"manager"} ## change to employee details API Call
-        ############
+        employee_details = requests.post(url = "https://employee-data-platform.vercel.app/api/fetchone", json = {"id":eid})
+        if employee_details.json() == []:
+            return Response({"status": "fail", "message": "Employee ID not found."}, status=status.HTTP_400_BAD_REQUEST)
+        employee = {"designation":employee_details.json()[0]["employee_role"]}
 
         policy = self.policies.filter(leave_type = data['leave_type'], designation=employee["designation"],organization = org)
         policy_data = PolicySerializer(policy,many=True).data[0]
