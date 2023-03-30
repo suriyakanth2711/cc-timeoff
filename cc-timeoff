@@ -1,0 +1,13 @@
+server {
+    listen 80;
+    server_name 35.74.222.56;
+    client_max_body_size 2G;
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location /static/ {
+        root /home/ubuntu/cc-timeoff;
+    }
+    location / {
+        include proxy_params;
+        proxy_pass http://localhost:8000;
+    }
+}
