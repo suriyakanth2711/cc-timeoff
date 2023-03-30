@@ -2,7 +2,9 @@
 
 Django application to manage time-off
 
-## API Reference
+![API Interaction](https://user-images.githubusercontent.com/62957689/228738983-202881ea-ffc2-4644-ae5b-2d4298dd74a7.png)
+
+## API Referenc
 
 
 |URL  | RESPONSE |
